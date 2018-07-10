@@ -1,0 +1,81 @@
+---
+title: Comparing commute modes with geofacets
+author: ''
+date: '2018-05-01'
+slug: comparing-commute-modes-with-geofacets
+categories:
+  - census
+  - analysis
+  - example
+  - visualization
+tags:
+  - census
+  - transit
+  - r
+draft: yes
+---
+
+```{r}
+#install.packages("geofacet")
+
+```
+```{r}
+library(cancensus)
+library(dplyr)
+mode_vectors <- list_census_vectors("CA16") %>% filter(vector == "v_CA16_5792") %>% child_census_vectors(leaves_only = TRUE) %>% pull(vector) 
+mode_vectors <- c("v_CA16_5792",mode_vectors)
+
+modes <- get_census("CA16", vectors = mode_vectors, regions=list(CMA="59933"), geo_format = "sp", level = "CSD",
+                    labels = "short") 
+
+modes <- modes[modes$Population > 5000,]
+#modes@data$name =  ifelse(!grepl("North Vancouver",modes@data$name),
+#                          gsub(" \\(.*\\)","",modes@data$name), 
+#                          modes@data$name)
+```
+
+```{r}
+library(geofacet)
+
+csd_grid <- grid_auto(modes, names = "name")
+
+modes_tidy <- modes@data %>% 
+  mutate(Drive = (v_CA16_5795+v_CA16_5795)/v_CA16_5792,
+         Transit = v_CA16_5801/v_CA16_5792,
+         Walk = v_CA16_5804/v_CA16_5792,
+         Bike = v_CA16_5807/v_CA16_5792,
+         Other = v_CA16_5810/v_CA16_5792) %>% 
+  tidyr::gather(mode, share, Drive:Other)
+
+
+
+library(ggplot2)
+# 
+# ggplot(modes_tidy, aes(mode, count, fill = mode)) +
+#   geom_col() +
+#   coord_flip() + 
+#   scale_fill_discrete(guide = FALSE) +
+#   facet_wrap(~ name) +
+#   theme_bw()
+
+ggplot(modes_tidy, aes(mode, share, fill = mode)) +
+  geom_col() +
+  coord_flip() + 
+  scale_y_continuous(labels = scales::percent) %>% 
+  scale_fill_discrete(guide = FALSE) +
+  facet_geo(~name, grid = csd_grid) +
+  theme_bw()
+```
+
+```{r}
+library(geogrid)
+
+
+
+```
+
+
+```{r}
+
+```
+

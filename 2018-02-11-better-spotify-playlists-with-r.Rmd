@@ -1,0 +1,33 @@
+---
+title: Better Spotify playlists with R
+author: Dmitry Shkolnik
+date: '2018-02-11'
+slug: better-spotify-playlists-with-r
+categories:
+  - analysis
+  - visualization
+  - blog
+tags:
+  - r
+  - music
+  - fun
+draft: yes
+---
+
+At the start of 2017, a friend of mine set a goal to create and share a Spotify playlist every week. Not only did he follow through with 52 playlists, but the playlists are actually quite good and have started to build up a following. 
+
+Each playlist has between 8 and 12 songs and ranges 30 and 50 minutes in duration. Genre and flow varies week-to-week and track-by-track, and it's a pretty wide range of genres, styles, and countries. Songs range from the occasional top-40 hit of years past, to improbably obscure deep cuts with under a thousand total listens on the platform. These playlists are good, and [I recommend checking them out](). 
+
+I was inspired to make my own Spotify playlists, but they were no good. So I did the only thing that felt appropriate: I decided to deconstruct what made these playlists work and write a data blog about it. 
+
+### A detour about music dicovery
+
+I've used a number of streaming services throughout the years. Most had their strengths and weaknesses, and my favourite was Rdio (gone too soon). After trying a few different services, I went back to Spotify and found that over the last few years their recommendation systems were getting better and better. This was not by accident: Spotify has invested heavily into a strong data science team and really understood that a good recommendation system can be a killer feature.
+
+Recommender systems are not new. Think of how long we've been able to see Amazon's "Customers also bought...", or Twitter's follow suggestions, or LinkedIn's persistent connection suggestions. Many of the early successful recommender systems relied on an approach called _collaborative filtering_ (CF) which essentially produced recommendations based on the behaviour of other users who displayed behaviour or tastes similiar to your own. There's a few different approaches to CF, and it works really well for situations where similarity can be a proxy for proximity like in human social networks. If many of your friends are connected to the same person, the likelihood is high that you also know them and would consider connecting to that person on social media. 
+
+You can use CF for recommending content like music but its not ideal. There's several major limitations: CF requires a rich amount of data to start with - this is the cold start problem where a new user has not provided enough behaviour for CF algorithms to make useful recommendations. There are a few other challenges to using CF that are well documented, but to me, the central issue with using it for music is that they almost inevitably result in convergence and a lack of diversity in recommendations. The algorithm uses interaction with items (purchases, clicks, listens) as an input. In practice this creates a positive feedback loop for the items we click on, and ensures that more obscure items end up hidden from our eyes and ears altogether. There are means to introduce randomness and serendipity into the algorithms to try to prevent this homogeneity, but in my opinion CF-based music discovery does't work well and we all end up listening to Father John Misty. 
+
+### Content based discovery
+
+An alternative to CF-based recommenders is to use the underlying properties of specific content as the basis for discovery. 

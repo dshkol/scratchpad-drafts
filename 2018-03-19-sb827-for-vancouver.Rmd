@@ -1,0 +1,202 @@
+---
+title: SB827 for Vancouver
+author: Dmitry Shkolnik
+date: '2018-03-19'
+slug: sb827-for-vancouver
+categories:
+  - maps
+  - analysis
+  - blog
+tags:
+  - maps
+  - r
+  - transit
+  - housing
+draft: yes
+---
+
+California is abuzz with discussion about SB827, a [proposal]() by California Senator Scott Wiener. In a state where the politics around housing and density are already intense, SB827 would introduce sweeping changes by overriding restrictive zoning around areas with "high quality" transit options and encouraging growth of mid-rise, 4-8 stories tall, density in those areas. In addition to restrictive zoning, SB827 would override local regulations for parking minimums and design review processes. 
+
+[SB827]() defines "high quality transit corridors" as areas with rapid transit like BART stations or corridors with fixed route bus service with intervals of no more than 15 minutes during peak commute hours. 
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+# Use Jens' simplecache function from vignette
+simpleCache <- function(object,key,refresh=FALSE){
+  cache_path=file.path(getOption("cache_path"),key)
+  if(!refresh & file.exists(cache_path)) readRDS(cache_path) else {
+    data=object
+    saveRDS(data,file=cache_path)
+    data
+  }
+}
+```
+
+
+```{r}
+# Get the data
+library(transitland)
+library(tidyverse)
+library(sf)
+library(cancensus)
+region <- list_census_regions("CA16") %>% filter(name=="Vancouver",level=="CSD")
+vancouver <- get_census("CA16",regions=as_census_region_list(region),geo_format = "sf",level = "Regions")
+#vancouver <- read_sf("../data/vancouver.geojson")
+bbox=st_bbox(vancouver)
+```
+
+
+```{r}
+# Get all stops
+stops <- get_transit_stops(list(bbox=bbox,per_page=1000),get_all=TRUE) %>%
+  filter(st_intersects(.,vancouver)>0)
+
+bline_skytrain_routes="099|095|096| Line"
+# label the stops by route
+stops <- stops %>% 
+  mutate(routes=lapply(routes_serving_stop,function(x){fromJSON(x)$route_name %>% unique()})) %>% 
+  mutate(routes_string = lapply(routes,function(x){paste(x,collapse=",")})) %>%
+  mutate(bline=grepl(bline_skytrain_routes,routes_string))
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(vancouver) +
+  geom_sf() +
+  geom_sf(data=stops,aes(color=bline), alpha=0.8,size=1,show.legend = "point") +
+  labs(title="Transit Stops in Vancouver",color="Rapid")
+```
+
+```{r}
+# Service frequency
+params <- list(bbox=bbox,
+               per_page=10000,
+               origin_departure_between="08:00:00,9:00:00",
+               date="2018-03-16")
+schedule_stops <- get_transit_schedule_stops(params,get_all = TRUE) %>% 
+  filter(origin_onestop_id %in% stops$onestop_id )
+
+frequency_counts <- schedule_stops %>% group_by(origin_onestop_id) %>% summarize(count=n())
+
+ggplot(frequency_counts %>% group_by(count) %>% summarize(n=n()), aes(x=count)) +
+  geom_histogram(stat="bin",fill="steelblue") +
+  theme_bw() +
+  labs(title="Number of stops by frequency, 9am to 10am",y="Number of stops","Frequency of service per hour",x="Departures per hour")
+```
+
+# Stations with >4 stops an hour intervals
+
+```{r}
+# library(lubridate)
+# schedule_stops2 <- schedule_stops %>%
+#   group_by(origin_onestop_id) %>%
+#   mutate(arrival_time = lubridate::hms(origin_arrival_time)) %>%
+#   arrange(arrival_time,.by_group = TRUE) %>%
+#   mutate(delay = arrival_time - lag(arrival_time, default = first(arrival_time))) %>%
+#   ungroup()
+
+freq4 <- frequency_counts %>%filter(count > 4)
+stop4 <- stops %>% 
+  filter(onestop_id %in% freq4$origin_onestop_id)
+
+freq8 <- frequency_counts %>%filter(count > 8)
+stop8 <- stops %>% 
+  filter(onestop_id %in% freq8$origin_onestop_id)
+
+
+ggplot(vancouver) +
+  geom_sf() +
+  geom_sf(data=stop4,aes(color=bline), alpha=0.8,size=1,show.legend = "point") +
+  labs(title="Transit Stops in Vancouver",color="Rapid")
+
+stop4 <- st_as_sf(stop4, coords = c("long", "lat"), crs = 4326) %>% 
+  st_transform(3005)
+stop8 <- st_as_sf(stop8, coords = c("long", "lat"), crs = 4326) %>% 
+  st_transform(3005)
+
+vancouver_x <- st_as_sf(vancouver, coords = c("long","lat", crs = 4326)) %>% st_transform(3005)
+
+circles4 <- st_buffer(stop4, dist = 400)
+circles8 <- st_buffer(stop8, dist = 400)
+
+circle_area4 <- st_union(circles4) %>% st_sf
+circle_area8 <- st_union(circles8) %>% st_sf
+
+circle_area4x <- circle_area4 %>% st_intersection(vancouver_x)
+
+ggplot(vancouver_x) +
+  geom_sf() +
+  #geom_sf(data=stop4,aes(colour=bline), alpha=1,size=1, show.legend = "point") +
+  geom_sf(data = circle_area4x, fill = "lightblue", alpha = 0.35) + 
+  geom_sf(data=stop4,aes(size=bline), alpha=1, show.legend = "point") +
+  #scale_colour_manual("",values = c("black","darkred"), labels = c("Regular","Rapid")) +
+  scale_size_manual("",values = c(0.75,2.5), labels = c("Regular","Rapid")) +
+  theme_void() +
+  coord_sf(datum = NA) +
+  labs(title = "What #SB827 would look like for Vancouver",
+       subtitle = "Areas within 400m of a transit station with more\nthan 4 boardings an hour during peak times",
+       caption = "@dshkol - Data: Transitland and Statistics Canada") +
+  theme(plot.title = element_text(face = "bold", hjust = 0),
+        plot.caption = element_text(hjust = 1),
+        legend.position = c(0.8,0.95))
+  #geom_sf(data = circles, alpha = 0.25)
+
+ggplot(vancouver) +
+  geom_sf() +
+  geom_sf(data=stop8,aes(color=bline), alpha=0.8,size=1,show.legend = "point") +
+  geom_sf(data = circle_area8, alpha = 0.25)
+```
+
+
+# Lower mainland
+
+```{r}
+region <- list_census_regions("CA16") %>% filter(name %in% c("Vancouver",level=="CMA"))
+lowerm <- get_census("CA16",regions=as_census_region_list(region),geo_format = "sf",level = "CMA")
+bbox=st_bbox(lowerm)
+
+stops_lm <- get_transit_stops(list(bbox=bbox,per_page=1000),get_all=TRUE) %>%
+  filter(st_intersects(.,lowerm)>0)
+
+bline_skytrain_routes="099|095|096| Line"
+# label the stops by route
+stops_lm <- stops_lm %>% 
+  mutate(routes=lapply(routes_serving_stop,function(x){fromJSON(x)$route_name %>% unique()})) %>% 
+  mutate(routes_string = lapply(routes,function(x){paste(x,collapse=",")})) %>%
+  mutate(bline=grepl(bline_skytrain_routes,routes_string))
+
+params <- list(bbox=bbox,
+               per_page=10000,
+               origin_departure_between="08:00:00,9:00:00",
+               date="2018-03-16")
+
+schedule_stops_lm <- get_transit_schedule_stops(params,get_all = TRUE) %>% 
+  filter(origin_onestop_id %in% stops_lm$onestop_id )
+
+frequency_counts_lm <- schedule_stops_lm %>% 
+  group_by(origin_onestop_id) %>% 
+  summarize(count=n())
+
+freq4_lm <- frequency_counts_lm %>%filter(count > 4)
+stop4_lm <- stops_lm %>% 
+  filter(onestop_id %in% freq4_lm$origin_onestop_id)
+
+stop4_lm <- st_as_sf(stop4_lm, coords = c("long", "lat"), crs = 4326) %>% 
+  st_transform(3005)
+circles4_lm <- st_buffer(stop4_lm, dist = 400)
+
+circle_area4_lm <- st_union(circles4_lm) %>% st_sf
+
+ggplot(lowerm) +
+  geom_sf() +
+  geom_sf(data=stop4_lm,aes(color=bline), alpha=0.8,size=1,show.legend = "point") +
+  geom_sf(data = circle_area4_lm, alpha = 0.25)
+```
+

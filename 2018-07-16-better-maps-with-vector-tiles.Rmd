@@ -1,0 +1,74 @@
+---
+title: How to make better maps in R with vector tiles
+author: 
+date: '2018-07-16'
+slug: better-maps-with-vector-tiles
+twitterImg: post/2018-07-16-better-maps-with-vector-tiles/figure-html/.png
+description: "Short tutorial for using and styling vector tiles in R"
+categories:
+  - visualization
+  - maps
+  - blog
+tags:
+  - maps
+  - r
+subdirectory: post
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Whats a vector tile?
+
+
+
+### Mapzen and rmapzen
+
+This post relies on [Tarek's](https://twitter.com/tarakc02) excellent [rmapzen](https://github.com/tarakc02/rmapzen) package which provides an R front-end to several Mapzen APIs. From the description: 
+
+> rmapzen is a client for any implementation of the Mapzen API. Though Mapzen itself has gone out of business, rmapzen can be set up to work with any provider who hosts Mapzen’s open-source software, including geocode.earth, Nextzen, and NYC GeoSearch from NYC Planning Labs. For more information, see https://mapzen.com/documentation/. The project is available on github as well as CRAN.
+
+[Mapzen](https://mapzen.com) was an innovative business that tried to be viable by making unreal open-source software with an emphasis on web mapping and geography products. These tools included a digital map rendering engine, search and routing services, open-source data tools for map data, terrain, and transit, gazeteers, and tile servers. This included an excellent vector tile service using OpenStreetMap data. Unfortunately Mapzen is now defunct but a number of other providers continue to host Mapzen's open-source tools. 
+
+Thanks to an [AWS Research Award](https://aws.amazon.com/earth/research-credits/) [Nextzen](https://www.nextzen.org) will continue to host the vector tile service through 2018 (and hopefully longer). 
+
+### Install and get yourself an API key
+
+```{r eval=FALSE, echo=TRUE}
+install.packages("rmapzen")
+```
+Create a key at (https://developers.nextzen.org) and save it as an environment variable or as an option in your `.rprofile` for persistency across sessions, and tell `rmapzen` to use Nextzen as it's tile host. (The package author has developed interfaces to a few other hosting services since Mapzen shutdown.)
+```{r eval=FALSE, echo=TRUE}
+options(nextzen_API_key="your_key")
+mz_set_tile_host_nextzen(key = nextzen_API_key)
+```
+
+
+
+### Alternative sources for vector tiles
+
+I continue Nextzen for vector tiles and have no issues with usage through my free-level API access, but there are some alternatives out there like [Thunderforest](https://thunderforest.com) and [Mapcat](https://www.mapcat.com) that have free/hobbyist access tiers to their vector tile APIs. There is also [OpenMapTiles](https://openmaptiles.com/downloads/planet/) where you can download different types of vector tiles in bulk (note that the files are enormous in size) for free for non-commercial uses. 
+
+
+
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
